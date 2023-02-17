@@ -1,0 +1,242 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model comments {
+  id               Int       @id @default(autoincrement())
+  title            String?   @db.VarChar
+  text             String?
+  start            Int?
+  end              Int?
+  userGroupVideoId Int?
+  createdAt        DateTime? @db.Timestamptz(6)
+  updatedAt        DateTime? @db.Timestamptz(6)
+
+  @@index([userGroupVideoId], map: "comments_user_group_video_idx")
+}
+
+model install_user_group_video {
+  id                Int       @id @default(autoincrement())
+  nativeLangId      Int?
+  targetLangId      Int?
+  videoKey          String?   @db.VarChar
+  targetLangAutoGen Boolean?  @default(false)
+  createdAt         DateTime? @db.Timestamptz(6)
+  updatedAt         DateTime? @db.Timestamptz(6)
+
+  @@index([targetLangId], map: "install_user_group_video_langs_targert_idx")
+}
+
+model languages {
+  id                  Int                   @id @default(autoincrement())
+  name                String?               @db.VarChar(255)
+  code                String?               @unique @db.VarChar(255)
+  createdAt           DateTime              @db.Timestamptz(6)
+  updatedAt           DateTime              @db.Timestamptz(6)
+  user_group_language user_group_language[]
+  user_languages      user_languages[]
+  video_info          video_info[]
+}
+
+model new_features {
+  id        Int       @id @default(autoincrement())
+  version   String?   @db.VarChar
+  text      String?
+  createdAt DateTime? @db.Timestamptz(6)
+  updatedAt DateTime? @db.Timestamptz(6)
+
+  @@index([version])
+}
+
+model phrases {
+  id                Int               @id @default(autoincrement())
+  fullPhrase        String?
+  highlighted       String?
+  translated        String?
+  startTime         Float?
+  endTime           Float?
+  createdAt         DateTime          @db.Timestamptz(6)
+  updatedAt         DateTime          @db.Timestamptz(6)
+  userGroupVideoId  Int?
+  userGroupId       Int?              @default(0)
+  videoKey          String?           @default("") @db.VarChar
+  type              Int?              @default(0)
+  startCaptionIndex Int?              @default(-1)
+  endCaptionIndex   Int?              @default(-1)
+  startPosition     Int?              @default(-1)
+  endPosition       Int?              @default(-1)
+  wordPhraseId      Int?              @default(0)
+  user_group_video  user_group_video? @relation(fields: [userGroupVideoId], references: [id])
+
+  @@index([userGroupVideoId], map: "phrases_usergroupvideoid_idx")
+}
+
+model settings {
+  id        Int       @id @default(autoincrement())
+  name      String?   @db.VarChar
+  value     String?   @db.VarChar
+  createdAt DateTime? @db.Timestamptz(6)
+  updatedAt DateTime? @db.Timestamptz(6)
+}
+
+model subtitle_lines {
+  id          Int        @id @default(autoincrement())
+  subtitle_id Int?
+  start       Int?
+  end         Int?
+  text        Int?
+  createdAt   DateTime   @db.Timestamptz(6)
+  updatedAt   DateTime   @db.Timestamptz(6)
+  subtitles   subtitles? @relation(fields: [subtitle_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([subtitle_id])
+}
+
+model subtitles {
+  id             Int              @id @default(autoincrement())
+  language_id    Int?
+  video_id       Int?
+  createdAt      DateTime         @db.Timestamptz(6)
+  updatedAt      DateTime         @db.Timestamptz(6)
+  subtitle_lines subtitle_lines[]
+}
+
+model user_group {
+  id                  Int                   @id @default(autoincrement())
+  owner_id            Int?
+  createdAt           DateTime              @db.Timestamptz(6)
+  updatedAt           DateTime              @db.Timestamptz(6)
+  deletedAt           DateTime?             @db.Timestamptz(6)
+  status              Int?                  @default(0)
+  name                String?               @default("") @db.VarChar
+  users               users?                @relation(fields: [owner_id], references: [id], onDelete: NoAction)
+  user_group_language user_group_language[]
+  user_group_video    user_group_video[]
+  user_user_group     user_user_group[]
+
+  @@index([owner_id, status], map: "user_group_owner_id_idx")
+}
+
+model user_group_language {
+  id          Int                              @id @default(autoincrement())
+  status      enum_user_group_language_status?
+  createdAt   DateTime                         @db.Timestamptz(6)
+  updatedAt   DateTime                         @db.Timestamptz(6)
+  languageId  Int?
+  userGroupId Int?
+  languages   languages?                       @relation(fields: [languageId], references: [id], onDelete: Cascade)
+  user_group  user_group?                      @relation(fields: [userGroupId], references: [id], onDelete: Cascade)
+
+  @@unique([languageId, userGroupId])
+}
+
+model user_group_video {
+  id             Int         @id @default(autoincrement())
+  createdAt      DateTime    @db.Timestamptz(6)
+  updatedAt      DateTime    @db.Timestamptz(6)
+  videoId        Int?
+  userGroupId    Int?
+  position       Int?        @default(0)
+  deletedAt      DateTime?   @db.Timestamptz(6)
+  status         Int?        @default(0)
+  nativeLangCode String?     @default("") @db.VarChar(255)
+  targetLangCode String?     @default("") @db.VarChar(255)
+  user_group     user_group? @relation(fields: [userGroupId], references: [id], onDelete: Cascade)
+  videos         videos?     @relation(fields: [videoId], references: [id])
+  phrases        phrases[]
+
+  @@index([userGroupId], map: "user_group_video_usergroupid_key")
+  @@index([videoId, userGroupId, status], map: "user_group_video_videoId_userGroupId_status_key")
+  @@index([status], map: "usergroupvideoid_status_idx")
+}
+
+model user_languages {
+  id         Int                         @id @default(autoincrement())
+  status     enum_user_languages_status?
+  createdAt  DateTime                    @db.Timestamptz(6)
+  updatedAt  DateTime                    @db.Timestamptz(6)
+  userId     Int?
+  languageId Int?
+  languages  languages?                  @relation(fields: [languageId], references: [id])
+  users      users?                      @relation(fields: [userId], references: [id])
+
+  @@index([userId], map: "user_languages_userId_key")
+  @@index([userId, status], map: "user_languages_userId_status_key")
+}
+
+model user_user_group {
+  id            Int         @id @default(autoincrement())
+  user_group_id Int?
+  user_id       Int?
+  createdAt     DateTime    @db.Timestamptz(6)
+  updatedAt     DateTime    @db.Timestamptz(6)
+  user_group    user_group? @relation(fields: [user_group_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users         users?      @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model users {
+  id              Int               @id @default(autoincrement())
+  hashId          String?           @unique @db.VarChar(255)
+  googleId        String?           @unique @db.VarChar(255)
+  email           String?           @unique @db.VarChar(255)
+  createdAt       DateTime          @db.Timestamptz(6)
+  updatedAt       DateTime          @db.Timestamptz(6)
+  jwtrefreshtoken String?
+  name            String?           @default("") @db.VarChar(255)
+  picture         String?           @default("") @db.VarChar(255)
+  locale          String?           @default("") @db.VarChar(255)
+  user_group      user_group[]
+  user_languages  user_languages[]
+  user_user_group user_user_group[]
+}
+
+model video_info {
+  id         Int        @id @default(autoincrement())
+  title      String?    @db.VarChar(255)
+  thumb      String?    @db.VarChar(255)
+  author     String?    @db.VarChar(255)
+  createdAt  DateTime   @db.Timestamptz(6)
+  updatedAt  DateTime   @db.Timestamptz(6)
+  languageId Int?
+  videoId    Int?
+  languages  languages? @relation(fields: [languageId], references: [id])
+  videos     videos?    @relation(fields: [videoId], references: [id])
+
+  @@index([videoId], map: "video_info_videoid_idx")
+}
+
+model video_lang {
+  id        Int       @id @default(autoincrement())
+  video_id  Int?
+  lang_code String?   @db.VarChar(255)
+  url       String?
+  createdAt DateTime? @db.Timestamptz(6)
+  updatedAt DateTime? @db.Timestamptz(6)
+
+  @@index([video_id])
+}
+
+model videos {
+  id               Int                @id @default(autoincrement())
+  videoKey         String?            @unique @db.VarChar(255)
+  createdAt        DateTime           @db.Timestamptz(6)
+  updatedAt        DateTime           @db.Timestamptz(6)
+  langs_loaded     Int?               @default(0)
+  user_group_video user_group_video[]
+  video_info       video_info[]
+}
+
+enum enum_user_group_language_status {
+  One @map("1")
+  Two @map("2")
+}
+
+enum enum_user_languages_status {
+  One @map("1")
+  Two @map("2")
+}
