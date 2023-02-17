@@ -4,6 +4,7 @@
   "main": "index.js",
   "license": "MIT",
   "scripts": {
+    "start": "ts-node src/app.ts",
     "dev": "nodemon",
     "supabase:typegen": "supabase gen types typescript --project-id jfzisybugkzcatmuphnv > src/lib/database.types.ts"
   },
