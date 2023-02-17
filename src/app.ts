@@ -6,6 +6,20 @@ import { Context, Telegraf } from 'telegraf';
 import { message } from 'telegraf/filters';
 import { getUser, getRandomPhrase, setupUser } from '@/lib/user';
 import { delay, translate } from '@/lib/utils';
+import { openai } from '@/lib/openai';
+// import { ChatGPTClient } from '@waylaidwanderer/chatgpt-api';
+// const cacheOptions = {};
+
+// const chatGptClient = new ChatGPTClient(
+//   process.env.OPENAI_KEY,
+//   {
+//     modelOptions: {
+//       model: 'text-davinci-003',
+//     },
+//     debug: false,
+//   },
+//   cacheOptions
+// );
 
 const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN ?? '');
 
@@ -45,6 +59,12 @@ const sendNewPhrase = async (ctx: Context) => {
     ctx.reply("Looks like you've learned all the phrases. Please, come back later.");
     return;
   }
+
+  //   const generatedText: { response: string } = await chatGptClient.sendMessage(
+  //     `I want you to act as a language tutor. I will provide you a word or a phrase, and you will generate a small paragraph using this word or phrase so it should be easy to understand the meaning of the word or phrase without translation. Here is my input: "${phrase}"\n\nYour response:`
+  //   );
+
+  //   ctx.reply(generatedText.response);
 
   ctx.reply(phrase, {
     reply_markup: {
