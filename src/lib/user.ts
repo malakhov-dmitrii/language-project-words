@@ -27,12 +27,18 @@ export const setupUser = async (ctx: Context, email: string) => {
       },
     });
 
-    const record = await supabase.from('telegram_users').upsert({
-      telegram_id: ctx.from.id,
-      user_id: user.data.user.id,
-      native_language: platformUser?.user_languages.find(l => l.status === 'One')?.languages?.name ?? 'English',
-      learning_language: platformUser?.user_languages.find(l => l.status === 'Two')?.languages?.name ?? 'English',
-    });
+    const record = await supabase
+      .from('telegram_users')
+      .upsert({
+        telegram_id: ctx.from.id,
+        user_id: user.data.user.id,
+        native_language: platformUser?.user_languages.find(l => l.status === 'One')?.languages?.name ?? 'English',
+        learning_language: platformUser?.user_languages.find(l => l.status === 'Two')?.languages?.name ?? 'English',
+      })
+      .select('*')
+      .single();
+
+    ctx.reply(`We set your native language to ${record.data?.native_language} and learning language to ${record.data?.learning_language}`);
 
     if (!record.error) {
       const res = await adminAuthClient.inviteUserByEmail(email, { redirectTo: 'https://t.me/language_project_feed_bot?start=confirmed' });
