@@ -1,7 +1,7 @@
 import { adminAuthClient, supabase } from './supabase';
 import { Context } from 'telegraf';
 import { prisma } from '@/lib/db';
-import { uniq } from 'lodash';
+import { sortBy, uniq } from 'lodash';
 import { pickRandom } from '@/lib/utils';
 
 export const setupUser = async (ctx: Context, email: string) => {
@@ -51,11 +51,10 @@ export const setupUser = async (ctx: Context, email: string) => {
 
 export const getUser = async (ctx: Context) => {
   const { data, error } = await supabase.from('telegram_users').select('*').eq('telegram_id', ctx.from?.id).single();
-  // console.log('user', data);
   return data;
 };
 
-export const getRandomPhrase = async (ctx: Context) => {
+export const getRecentPhrase = async (ctx: Context) => {
   const _user = await getUser(ctx);
 
   if (_user) {
@@ -76,13 +75,16 @@ export const getRandomPhrase = async (ctx: Context) => {
       .select('*') //
       .eq('user_id', authUser.data.user?.id);
 
-    const phrasesStr = phrases.map(phrase => phrase.highlighted?.replaceAll('\n', ' ').trim() ?? '').filter(Boolean);
+    const phrasesStr = sortBy(phrases, i => i.createdAt)
+      .reverse()
+      .map(phrase => phrase.highlighted?.replaceAll('\n', ' ').trim() ?? '')
+      .filter(Boolean);
     const diff = uniq(phrasesStr).filter(p => !passedPhrases.data?.find(pp => pp.phrase === p));
 
     if (diff.length === 0) {
       return null;
     }
 
-    return pickRandom(diff);
+    return diff[0];
   }
 };

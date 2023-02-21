@@ -162,21 +162,27 @@ export interface Database {
       user_feed_queue: {
         Row: {
           created_at: string | null
+          generated_text: string | null
           id: number
+          message_id: number | null
           phrase: string
           reply: string | null
           user_id: string
         }
         Insert: {
           created_at?: string | null
+          generated_text?: string | null
           id?: number
+          message_id?: number | null
           phrase: string
           reply?: string | null
           user_id: string
         }
         Update: {
           created_at?: string | null
+          generated_text?: string | null
           id?: number
+          message_id?: number | null
           phrase?: string
           reply?: string | null
           user_id?: string

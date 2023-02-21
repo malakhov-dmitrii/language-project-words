@@ -4,7 +4,7 @@ dotenv.config();
 
 import { Context, Telegraf } from 'telegraf';
 import { message } from 'telegraf/filters';
-import { getUser, getRandomPhrase, setupUser } from '@/lib/user';
+import { getUser, getRecentPhrase, setupUser } from '@/lib/user';
 import { delay, translate } from '@/lib/utils';
 import { openai } from '@/lib/openai';
 // import { ChatGPTClient } from '@waylaidwanderer/chatgpt-api';
@@ -48,50 +48,71 @@ bot.command('clear', async ctx => {
   const user = await getUser(ctx);
 
   await supabase.from('telegram_users').delete().eq('telegram_id', ctx.from?.id);
-  await adminAuthClient.deleteUser(user?.user_id);
+  await adminAuthClient.deleteUser(user?.user_id!);
   ctx.reply('Your account has been deleted. You can start over by sending /start');
 });
 
 const sendNewPhrase = async (ctx: Context) => {
-  const phrase = await getRandomPhrase(ctx);
+  const placeholder = await ctx.reply('Generating a new phrase...', { disable_notification: true });
+  const phrase = await getRecentPhrase(ctx);
 
   if (!phrase) {
     ctx.reply("Looks like you've learned all the phrases. Please, come back later.");
     return;
   }
 
-  //   const generatedText: { response: string } = await chatGptClient.sendMessage(
-  //     `I want you to act as a language tutor. I will provide you a word or a phrase, and you will generate a small paragraph using this word or phrase so it should be easy to understand the meaning of the word or phrase without translation. Here is my input: "${phrase}"\n\nYour response:`
-  //   );
-
-  //   ctx.reply(generatedText.response);
-
-  ctx.reply(phrase, {
-    reply_markup: {
-      inline_keyboard: [
-        [
-          {
-            text: '👍',
-            callback_data: 'like',
-          },
-          {
-            text: '❌',
-            callback_data: 'dislike',
-          },
-          {
-            text: 'Skip',
-            callback_data: 'dislike',
-          },
-        ],
-        [
-          {
-            text: 'Need translation 🇬🇧',
-            callback_data: 'translation',
-          },
-        ],
-      ],
-    },
+  const generated = await openai.createCompletion({
+    model: 'text-davinci-003',
+    prompt: `I want you to act as a language tutor. I will provide you a word or a phrase, and you will generate a small paragraph using this word or phrase so it should be easy to understand the meaning of the word or phrase without translation. Here is my input: "${phrase}"\n\nYour response:`,
+    temperature: 0.7,
+    max_tokens: 256,
+    top_p: 1,
+    frequency_penalty: 0,
+    presence_penalty: 0,
   });
+
+  const text = generated.data.choices[0].text;
+
+  const user = await getUser(ctx);
+
+  console.log('generated text', text);
+
+  const reply = await ctx.reply(
+    `${text}
+  
+The original phrase/word: <b>${phrase}</b>`,
+    {
+      parse_mode: 'HTML',
+      reply_markup: {
+        inline_keyboard: [
+          [
+            {
+              text: '👍',
+              callback_data: 'like',
+            },
+            {
+              text: '❌',
+              callback_data: 'dislike',
+            },
+            {
+              text: 'Skip',
+              callback_data: 'dislike',
+            },
+          ],
+          [
+            {
+              text: 'Need translation 🇬🇧',
+              callback_data: 'translation',
+            },
+          ],
+        ],
+      },
+    }
+  );
+
+  ctx.deleteMessage(placeholder.message_id);
+
+  await supabase.from('user_feed_queue').insert({ phrase, user_id: user?.user_id!, generated_text: text, message_id: reply.message_id });
 };
 
 bot.on('message', async (ctx, next) => {
@@ -136,7 +157,7 @@ bot.on('message', async (ctx, next) => {
 });
 
 bot.on('callback_query', async ctx => {
-  ctx.answerCbQuery('Thanks for your feedback!');
+  ctx.answerCbQuery('Cool, lets go with the next one!');
 
   const user = await getUser(ctx);
   if (!user) {
@@ -150,10 +171,17 @@ bot.on('callback_query', async ctx => {
   // @ts-expect-error data is not defined in the type
   const reply = ctx.callbackQuery.data;
 
+  // console.log(ctx.callbackQuery.message?.message_id);
+
   if (reply !== 'translation') {
     ctx.editMessageReplyMarkup({ inline_keyboard: [] });
 
-    const existingPhrase = await supabase.from('user_feed_queue').select().eq('phrase', text).eq('user_id', user.user_id).single();
+    const existingPhrase = await supabase
+      .from('user_feed_queue') //
+      .select()
+      .eq('message_id', ctx.callbackQuery.message?.message_id)
+      // .eq('user_id', user.user_id)
+      .single();
 
     await supabase
       .from('user_feed_queue') //
