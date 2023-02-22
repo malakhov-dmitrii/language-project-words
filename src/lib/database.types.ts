@@ -164,6 +164,7 @@ export interface Database {
           created_at: string | null
           generated_text: string | null
           id: number
+          jokes: string[]
           message_id: number | null
           phrase: string
           reply: string | null
@@ -173,6 +174,7 @@ export interface Database {
           created_at?: string | null
           generated_text?: string | null
           id?: number
+          jokes?: string[]
           message_id?: number | null
           phrase: string
           reply?: string | null
@@ -182,6 +184,7 @@ export interface Database {
           created_at?: string | null
           generated_text?: string | null
           id?: number
+          jokes?: string[]
           message_id?: number | null
           phrase?: string
           reply?: string | null

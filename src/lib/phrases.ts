@@ -41,9 +41,9 @@ export const getRecentPhrase = async (ctx: Context) => {
   }
 };
 
-export const sendNewPhrase = async (ctx: Context) => {
-  const placeholder = await ctx.reply('Generating a new phrase...', { disable_notification: true });
-  const phrase = await getRecentPhrase(ctx);
+export const sendNewPhrase = async (ctx: Context, retryPhrase?: string) => {
+  const placeholder = await ctx.reply('Getting a phrase...', { disable_notification: true });
+  const phrase = retryPhrase ?? (await getRecentPhrase(ctx));
 
   if (!phrase) {
     ctx.reply("Looks like you've learned all the phrases. Please, come back later.");
@@ -63,8 +63,6 @@ export const sendNewPhrase = async (ctx: Context) => {
   const text = generated.data.choices[0].text;
 
   const user = await getUser(ctx);
-
-  console.log('generated text', text);
 
   const reply = await ctx.reply(
     `${text}

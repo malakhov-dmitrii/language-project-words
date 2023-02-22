@@ -14,17 +14,15 @@ export const replyOptions = {
           callback_data: 'dislike',
         },
         {
-          text: 'Skip',
-          callback_data: 'dislike',
+          text: '🔁',
+          callback_data: 'retry',
         },
       ],
       [
         {
-          text: 'Need translation 🇬🇧',
+          text: 'Need translation 🌐',
           callback_data: 'translation',
         },
-      ],
-      [
         {
           text: 'Get a joke 🤡',
           callback_data: 'joke',

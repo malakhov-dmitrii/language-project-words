@@ -1,6 +1,7 @@
 import { adminAuthClient, supabase } from './supabase';
 import { Context } from 'telegraf';
 import { prisma } from '@/lib/db';
+import { UserProfile } from '@/lib/types';
 
 export const setupUser = async (ctx: Context, email: string) => {
   if (!ctx.from || !email) {
@@ -47,7 +48,7 @@ export const setupUser = async (ctx: Context, email: string) => {
   }
 };
 
-export const getUser = async (ctx: Context) => {
+export const getUser = async (ctx: Context): Promise<UserProfile | null> => {
   const { data, error } = await supabase.from('telegram_users').select('*').eq('telegram_id', ctx.from?.id).single();
   return data;
 };
