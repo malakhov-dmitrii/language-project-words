@@ -1,8 +1,6 @@
 import { adminAuthClient, supabase } from './supabase';
 import { Context } from 'telegraf';
 import { prisma } from '@/lib/db';
-import { sortBy, uniq } from 'lodash';
-import { pickRandom } from '@/lib/utils';
 
 export const setupUser = async (ctx: Context, email: string) => {
   if (!ctx.from || !email) {
@@ -52,39 +50,4 @@ export const setupUser = async (ctx: Context, email: string) => {
 export const getUser = async (ctx: Context) => {
   const { data, error } = await supabase.from('telegram_users').select('*').eq('telegram_id', ctx.from?.id).single();
   return data;
-};
-
-export const getRecentPhrase = async (ctx: Context) => {
-  const _user = await getUser(ctx);
-
-  if (_user) {
-    const authUser = await adminAuthClient.getUserById(_user?.user_id);
-
-    const groups = await prisma.user_group.findMany({
-      where: { users: { email: authUser.data.user?.email } },
-    });
-
-    const phrases = await prisma.phrases.findMany({
-      where: {
-        userGroupId: { in: groups.map(group => group.id) },
-      },
-    });
-
-    const passedPhrases = await supabase
-      .from('user_feed_queue')
-      .select('*') //
-      .eq('user_id', authUser.data.user?.id);
-
-    const phrasesStr = sortBy(phrases, i => i.createdAt)
-      .reverse()
-      .map(phrase => phrase.highlighted?.replaceAll('\n', ' ').trim() ?? '')
-      .filter(Boolean);
-    const diff = uniq(phrasesStr).filter(p => !passedPhrases.data?.find(pp => pp.phrase === p));
-
-    if (diff.length === 0) {
-      return null;
-    }
-
-    return diff[0];
-  }
 };
