@@ -2,7 +2,7 @@ import { HandlerContext } from '@/handlers/handlers.types';
 import { languages } from '@/lib/languages';
 import { sendNewPhrase } from '@/lib/phrases';
 import { supabase } from '@/lib/supabase';
-import { getUser } from '@/lib/user';
+import { getUser, setupUser } from '@/lib/user';
 import { entries } from 'lodash';
 import { Context, NarrowedContext } from 'telegraf';
 import { Message, Update } from 'telegraf/typings/core/types/typegram';

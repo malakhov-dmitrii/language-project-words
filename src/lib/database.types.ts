@@ -98,6 +98,7 @@ export interface Database {
       telegram_users: {
         Row: {
           created_at: string | null
+          email: string
           learning_language: string
           native_language: string
           state: string | null
@@ -106,6 +107,7 @@ export interface Database {
         }
         Insert: {
           created_at?: string | null
+          email: string
           learning_language?: string
           native_language: string
           state?: string | null
@@ -114,6 +116,7 @@ export interface Database {
         }
         Update: {
           created_at?: string | null
+          email?: string
           learning_language?: string
           native_language?: string
           state?: string | null

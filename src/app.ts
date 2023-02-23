@@ -21,6 +21,20 @@ bot.use(async (ctx, next) => {
 
 bot.start(startHandler);
 
+bot.command('help', async ctx => {
+  ctx.reply(`This bot will send your recent catches from Language Project app
+
+It will take your 💾 saved phrases and try to give you a text, where the meaning of the phrase is clear.
+
+You got the meaning? Press 👍
+You didn’t? Press ❌
+
+Want to try again with new text? - 🔁
+
+Also:
+Translate the phrase to your native language 🌐
+Get a joke with the phrase 🤡`);
+});
 bot.command('clear', clearHandler);
 bot.command('cancel', async ctx => {
   const user = await getUser(ctx);

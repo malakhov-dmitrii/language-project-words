@@ -8,24 +8,32 @@ export const setupUser = async (ctx: Context, email: string) => {
     return;
   }
 
+  const platformUser = await prisma.users.findUnique({
+    where: { email },
+    include: {
+      user_languages: {
+        include: { languages: true },
+      },
+    },
+  });
+
+  if (!platformUser) {
+    ctx.reply(
+      "We couldn't find your account on the platform. Please, make sure you use the same email address you used to sign up on the platform."
+    );
+    return;
+  }
+
   const user = await adminAuthClient.createUser({
     email,
   });
 
   if (user.error?.message) {
     ctx.reply(`${user.error.message}`);
+    return;
   }
 
   if (user.data.user?.id) {
-    const platformUser = await prisma.users.findUnique({
-      where: { email },
-      include: {
-        user_languages: {
-          include: { languages: true },
-        },
-      },
-    });
-
     const record = await supabase
       .from('telegram_users')
       .upsert({
@@ -33,11 +41,14 @@ export const setupUser = async (ctx: Context, email: string) => {
         user_id: user.data.user.id,
         native_language: platformUser?.user_languages.find(l => l.status === 'One')?.languages?.name ?? 'English',
         learning_language: platformUser?.user_languages.find(l => l.status === 'Two')?.languages?.name ?? 'English',
+        email,
       })
       .select('*')
       .single();
 
-    ctx.reply(`We set your native language to ${record.data?.native_language} and learning language to ${record.data?.learning_language}`);
+    ctx.reply(
+      `We set your native language to ${record.data?.native_language} and learning language to ${record.data?.learning_language}. You can change it by typing /info`
+    );
 
     if (!record.error) {
       const res = await adminAuthClient.inviteUserByEmail(email, { redirectTo: 'https://t.me/language_project_feed_bot?start=confirmed' });
