@@ -1,3 +1,4 @@
+import { decode } from 'base64-arraybuffer';
 import { languages } from '@/lib/languages';
 import { getCompletion } from '@/lib/openai';
 import { sendNewPhrase } from '@/lib/phrases';
@@ -9,6 +10,18 @@ import axios from 'axios';
 import { entries } from 'lodash';
 import { Context, NarrowedContext } from 'telegraf';
 import { CallbackQuery, Message, Update } from 'telegraf/typings/core/types/typegram';
+import * as googleTTS from 'google-tts-api';
+import { write, writeFileSync } from 'fs';
+import { writeAsync } from 'fs-jetpack';
+import dayjs from 'dayjs';
+
+const getVoiceOver = async (text: string, lang: string) => {
+  const res = await googleTTS.getAllAudioBase64(text, {
+    lang: lang ?? 'en',
+  });
+
+  return res.map(r => r.base64).join('');
+};
 
 type Ctx = NarrowedContext<Context<Update>, Update.CallbackQueryUpdate<CallbackQuery>>;
 
@@ -40,26 +53,26 @@ const saveUserReaction = async (ctx: Ctx, text: string, reply: string) => {
     .eq('phrase', text);
 };
 
-const getDadJoke = async () => {
-  const dadJoke = await axios
-    .get('https://dad-jokes.p.rapidapi.com/random/joke', {
-      headers: {
-        Accept: 'application/json',
-        'X-RapidAPI-Key': 'd2c263ecf4msh84b19013afcdf16p1ffebcjsn03de177baf11',
-        'X-RapidAPI-Host': 'dad-jokes.p.rapidapi.com',
-      },
-    })
-    .catch(e => {
-      console.log(e.message);
+// const getDadJoke = async () => {
+//   const dadJoke = await axios
+//     .get('https://dad-jokes.p.rapidapi.com/random/joke', {
+//       headers: {
+//         Accept: 'application/json',
+//         'X-RapidAPI-Key': 'd2c263ecf4msh84b19013afcdf16p1ffebcjsn03de177baf11',
+//         'X-RapidAPI-Host': 'dad-jokes.p.rapidapi.com',
+//       },
+//     })
+//     .catch(e => {
+//       console.log(e.message);
 
-      return { data: '' };
-    });
+//       return { data: '' };
+//     });
 
-  const body = dadJoke.data?.body?.[0];
-  const res = body?.setup + '\n' + body?.punchline;
+//   const body = dadJoke.data?.body?.[0];
+//   const res = body?.setup + '\n' + body?.punchline;
 
-  return body ? res : '';
-};
+//   return body ? res : '';
+// };
 
 const callbackQueryHandler = async (ctx: Ctx) => {
   ctx.answerCbQuery('Cool, lets go with the next one!').catch(e => console.log(e.message));
@@ -83,6 +96,11 @@ const callbackQueryHandler = async (ctx: Ctx) => {
       text,
       to: langCode ?? 'en',
     });
+
+    if (!translated) {
+      ctx.reply('Sorry, I could not translate this phrase');
+      return;
+    }
     ctx.reply(translated);
     return;
   }
@@ -123,6 +141,24 @@ const callbackQueryHandler = async (ctx: Ctx) => {
       .update({ jokes: [...(phrase.data?.jokes ?? []), joke] })
       .eq('message_id', message_id);
     ctx.reply(joke);
+  }
+
+  if (reply === 'audio') {
+    const user = await getUser(ctx);
+    const langCode = getLangCodeFromFull(user);
+    const vo = await getVoiceOver(text, langCode);
+    const path = `${dayjs().format('HH:mm:ss DD MMM YYYY')}.mp3`;
+
+    const upload = await supabase.storage.from('audio').upload(path, decode(vo), { contentType: 'audio/mp3' });
+    const r = await supabase.storage.from('audio').getPublicUrl(path);
+
+    if (upload.data) {
+      ctx.replyWithVoice(r.data.publicUrl, { reply_to_message_id: ctx.callbackQuery.message?.message_id });
+    } else {
+      console.log(upload.error);
+
+      ctx.reply('Sorry, something went wrong');
+    }
   }
 
   if (reply === 'change_native_language') {

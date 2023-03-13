@@ -27,7 +27,13 @@ export const replyOptions = {
           text: 'Get a joke 🤡',
           callback_data: 'joke',
         },
+        {
+          text: 'Get an audio 🎧',
+          callback_data: 'audio',
+        },
       ],
+      // [
+      // ]
     ],
   },
 };
