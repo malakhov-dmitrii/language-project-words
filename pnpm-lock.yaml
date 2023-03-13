@@ -11,6 +11,7 @@ specifiers:
   dayjs: ^1.11.7
   dotenv: ^16.0.3
   fs-jetpack: ^5.1.0
+  google-tts-api: ^2.0.2
   lodash: ^4.17.21
   nodemon: ^2.0.20
   openai: ^3.1.0
@@ -30,6 +31,7 @@ dependencies:
   dayjs: 1.11.7
   dotenv: 16.0.3
   fs-jetpack: 5.1.0
+  google-tts-api: 2.0.2
   lodash: 4.17.21
   openai: 3.1.0
   telegraf: 4.11.2
@@ -342,6 +344,14 @@ packages:
       fastq: 1.15.0
     transitivePeerDependencies:
       - supports-color
+    dev: false
+
+  /axios/0.21.4:
+    resolution: {integrity: sha512-ut5vewkiu8jjGBdqpM44XxjuCjq9LAKeHVmoVfHVzy8eHgxxq8SbAVQNovDA8mVi05kP0Ea/n/UzcSHcTJQfNg==}
+    dependencies:
+      follow-redirects: 1.15.2
+    transitivePeerDependencies:
+      - debug
     dev: false
 
   /axios/0.26.1:
@@ -886,6 +896,14 @@ packages:
     dependencies:
       is-glob: 4.0.3
     dev: true
+
+  /google-tts-api/2.0.2:
+    resolution: {integrity: sha512-MkQYbBJEdom8hJpfEVDfD3tpBtkz0X59C+FNsoRhbnCiFjZRnzyurGQ5OrAr3xkigII56/jmk0JNwZsp450G+Q==}
+    dependencies:
+      axios: 0.21.4
+    transitivePeerDependencies:
+      - debug
+    dev: false
 
   /gpt-3-encoder/1.1.4:
     resolution: {integrity: sha512-fSQRePV+HUAhCn7+7HL7lNIXNm6eaFWFbNLOOGtmSJ0qJycyQvj60OvRlH7mee8xAMjBDNRdMXlMwjAbMTDjkg==}
