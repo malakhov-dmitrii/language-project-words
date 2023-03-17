@@ -6,32 +6,58 @@ export const replyOptions = {
     inline_keyboard: [
       [
         {
-          text: '👍',
-          callback_data: 'like',
+          text: 'Generate new context',
+          callback_data: 'new_context',
         },
         {
-          text: '❌',
-          callback_data: 'dislike',
-        },
-        {
-          text: '🔁',
-          callback_data: 'retry',
+          text: 'Generate explanation',
+          callback_data: 'explanation',
         },
       ],
       [
         {
-          text: 'Need translation 🌐',
+          text: 'Translate to native language',
           callback_data: 'translation',
         },
         {
-          text: 'Get a joke 🤡',
+          text: 'Find a joke',
           callback_data: 'joke',
         },
+      ],
+      [
         {
-          text: 'Get an audio 🎧',
-          callback_data: 'audio',
+          text: 'Next',
+          callback_data: 'next',
         },
       ],
+      // [
+      //   {
+      //     text: '👍',
+      //     callback_data: 'like',
+      //   },
+      //   {
+      //     text: '❌',
+      //     callback_data: 'dislike',
+      //   },
+      //   {
+      //     text: '🔁',
+      //     callback_data: 'retry',
+      //   },
+      // ],
+      // [
+      //   {
+      //     text: 'Need translation 🌐',
+      //     callback_data: 'translation',
+      //   },
+      //   {
+      //     text: 'Get a joke 🤡',
+      //     callback_data: 'joke',
+      //   },
+      //   {
+      //     text: 'Get an audio 🎧',
+      //     callback_data: 'audio',
+      //   },
+      // ],
       // [
       // ]
     ],

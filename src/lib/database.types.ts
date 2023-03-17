@@ -95,30 +95,146 @@ export interface Database {
           started_at?: string | null
         }
       }
+      pa_chats: {
+        Row: {
+          assistant_id: number | null
+          client_id: number | null
+          created_at: string | null
+          id: number
+          join_code: number
+        }
+        Insert: {
+          assistant_id?: number | null
+          client_id?: number | null
+          created_at?: string | null
+          id?: number
+          join_code: number
+        }
+        Update: {
+          assistant_id?: number | null
+          client_id?: number | null
+          created_at?: string | null
+          id?: number
+          join_code?: number
+        }
+      }
+      pa_profiles: {
+        Row: {
+          chat_id: number | null
+          created_at: string | null
+          id: number
+          role: string
+          username: string | null
+        }
+        Insert: {
+          chat_id?: number | null
+          created_at?: string | null
+          id?: number
+          role?: string
+          username?: string | null
+        }
+        Update: {
+          chat_id?: number | null
+          created_at?: string | null
+          id?: number
+          role?: string
+          username?: string | null
+        }
+      }
+      pa_todos: {
+        Row: {
+          chat_id: number
+          client_inbox: boolean
+          date: string | null
+          description: string | null
+          id: number
+          inserted_at: string
+          is_complete: boolean | null
+          title: string | null
+          url: string | null
+          user_id: number
+        }
+        Insert: {
+          chat_id: number
+          client_inbox?: boolean
+          date?: string | null
+          description?: string | null
+          id?: number
+          inserted_at?: string
+          is_complete?: boolean | null
+          title?: string | null
+          url?: string | null
+          user_id: number
+        }
+        Update: {
+          chat_id?: number
+          client_inbox?: boolean
+          date?: string | null
+          description?: string | null
+          id?: number
+          inserted_at?: string
+          is_complete?: boolean | null
+          title?: string | null
+          url?: string | null
+          user_id?: number
+        }
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          chats_ids: number[] | null
+          full_name: string | null
+          id: string
+          updated_at: string | null
+          username: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          chats_ids?: number[] | null
+          full_name?: string | null
+          id: string
+          updated_at?: string | null
+          username?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          chats_ids?: number[] | null
+          full_name?: string | null
+          id?: string
+          updated_at?: string | null
+          username?: string | null
+        }
+      }
       telegram_users: {
         Row: {
           created_at: string | null
+          default_explanation_language: string
           email: string
           learning_language: string
           native_language: string
+          phrases_batch_size: string | null
           state: string | null
           telegram_id: number
           user_id: string
         }
         Insert: {
           created_at?: string | null
+          default_explanation_language?: string
           email: string
           learning_language?: string
           native_language: string
+          phrases_batch_size?: string | null
           state?: string | null
           telegram_id?: number
           user_id: string
         }
         Update: {
           created_at?: string | null
+          default_explanation_language?: string
           email?: string
           learning_language?: string
           native_language?: string
+          phrases_batch_size?: string | null
           state?: string | null
           telegram_id?: number
           user_id?: string

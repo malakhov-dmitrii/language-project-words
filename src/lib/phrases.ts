@@ -2,9 +2,12 @@ import { replyOptions } from '@/lib/config';
 import { prisma } from '@/lib/db';
 import { openai } from '@/lib/openai';
 import { adminAuthClient, supabase } from '@/lib/supabase';
+import { CtxUpdate } from '@/lib/types';
 import { getUser } from '@/lib/user';
+import { handleGetAudio } from '@/lib/utils';
 import { sortBy, uniq } from 'lodash';
-import { Context } from 'telegraf';
+import { Context, NarrowedContext } from 'telegraf';
+import { Message, Update } from 'telegraf/typings/core/types/typegram';
 
 export const getRecentPhrase = async (ctx: Context) => {
   const _user = await getUser(ctx);
@@ -18,7 +21,7 @@ export const getRecentPhrase = async (ctx: Context) => {
 
     const phrases = await prisma.phrases.findMany({
       where: {
-        userGroupId: { in: groups.map(group => group.id) },
+        userGroupId: { in: groups.map((group) => group.id) },
       },
     });
 
@@ -27,11 +30,13 @@ export const getRecentPhrase = async (ctx: Context) => {
       .select('*') //
       .eq('user_id', authUser.data.user?.id);
 
-    const phrasesStr = sortBy(phrases, i => i.createdAt)
+    const phrasesStr = sortBy(phrases, (i) => i.createdAt)
       .reverse()
-      .map(phrase => phrase.highlighted?.replaceAll('\n', ' ').trim() ?? '')
+      .map((phrase) => phrase.highlighted?.replaceAll('\n', ' ').trim() ?? '')
       .filter(Boolean);
-    const diff = uniq(phrasesStr).filter(p => !passedPhrases.data?.find(pp => pp.phrase === p));
+    const diff = uniq(phrasesStr).filter(
+      (p) => !passedPhrases.data?.find((pp) => pp.phrase === p)
+    );
 
     if (diff.length === 0) {
       return null;
@@ -41,12 +46,25 @@ export const getRecentPhrase = async (ctx: Context) => {
   }
 };
 
-export const sendNewPhrase = async (ctx: Context, retryPhrase?: string) => {
-  const placeholder = await ctx.reply('Getting a phrase...', { disable_notification: true });
+export const sendNewPhrase = async (
+  ctx: NarrowedContext<Context<Update>, Update.MessageUpdate<Message>>,
+  retryPhrase?: string
+) => {
+  const user = await getUser(ctx);
+  if (!user) {
+    ctx.reply('Please, connect your account first');
+    return;
+  }
+
+  const placeholder = await ctx.reply('Getting a phrase...', {
+    disable_notification: true,
+  });
   const phrase = retryPhrase ?? (await getRecentPhrase(ctx));
 
   if (!phrase) {
-    ctx.reply("Looks like you've learned all the phrases. Please, come back later.");
+    ctx.reply(
+      "Looks like you've learned all the phrases. Please, come back later."
+    );
     return;
   }
 
@@ -61,8 +79,10 @@ export const sendNewPhrase = async (ctx: Context, retryPhrase?: string) => {
   });
 
   const text = generated.data.choices[0].text;
-
-  const user = await getUser(ctx);
+  if (!text) {
+    ctx.reply('Sorry, I could not generate a phrase for you');
+    return;
+  }
 
   const reply = await ctx.reply(
     `${text}
@@ -71,7 +91,14 @@ The original phrase/word: <b>${phrase}</b>`,
     replyOptions
   );
 
+  await handleGetAudio(ctx, { text });
+
   ctx.deleteMessage(placeholder.message_id);
 
-  await supabase.from('user_feed_queue').insert({ phrase, user_id: user?.user_id!, generated_text: text, message_id: reply.message_id });
+  await supabase.from('user_feed_queue').insert({
+    phrase,
+    user_id: user?.user_id!,
+    generated_text: text,
+    message_id: reply.message_id,
+  });
 };
