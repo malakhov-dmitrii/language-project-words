@@ -73,7 +73,7 @@ export async function handleGetAudio(
   const user = await getUser(ctx);
 
   const detectedLang = await detectLanguage(text);
-  const lang = langCode ?? detectedLang;
+  const lang = langCode || detectedLang;
 
   console.log('detectedLang', detectedLang);
 
@@ -91,16 +91,9 @@ export async function handleGetAudio(
   const r = await supabase.storage.from('audio').getPublicUrl(path);
 
   if (upload.data) {
-    const message_id = ctx.callbackQuery?.message?.message_id;
-    ctx.replyWithVoice(
-      r.data.publicUrl,
-      message_id && {
-        reply_to_message_id: message_id,
-      }
-    );
+    ctx.replyWithVoice(r.data.publicUrl);
   } else {
     console.log(upload.error);
-
     ctx.reply('Sorry, something went wrong');
   }
 }

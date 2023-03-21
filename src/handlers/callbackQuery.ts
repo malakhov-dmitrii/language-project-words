@@ -1,6 +1,6 @@
 import { decode } from 'base64-arraybuffer';
 import { languages } from '@/lib/languages';
-import { getCompletion } from '@/lib/openai';
+import { getCompletion, openai } from '@/lib/openai';
 import { sendNewPhrase } from '@/lib/phrases';
 import { supabase } from '@/lib/supabase';
 import { CtxUpdate, UserProfile } from '@/lib/types';
@@ -28,27 +28,27 @@ const saveUserReaction = async (
     return;
   }
 
-  const originalPhrase = text.split('The original phrase/word: ')[1];
+  // const originalPhrase = text.split('The original phrase/word: ')[1];
 
-  ctx
-    .editMessageReplyMarkup({ inline_keyboard: [] })
-    .catch((e) => console.log(e.message));
+  // ctx
+  //   .editMessageReplyMarkup({ inline_keyboard: [] })
+  //   .catch((e) => console.log(e.message));
 
-  const existingPhrase = await supabase
-    .from('user_feed_queue') //
-    .select()
-    .eq('message_id', ctx.callbackQuery.message?.message_id)
-    .single();
+  // const existingPhrase = await supabase
+  //   .from('user_feed_queue') //
+  //   .select()
+  //   .eq('message_id', ctx.callbackQuery.message?.message_id)
+  //   .single();
 
-  await supabase
-    .from('user_feed_queue') //
-    .upsert({
-      id: existingPhrase.data?.id, //
-      phrase: existingPhrase.data?.phrase ?? originalPhrase,
-      user_id: user.user_id,
-      reply: reply === 'next' ? 'like' : reply,
-    }) //
-    .eq('phrase', text);
+  // await supabase
+  //   .from('user_feed_queue') //
+  //   .upsert({
+  //     id: existingPhrase.data?.id, //
+  //     phrase: existingPhrase.data?.phrase ?? originalPhrase,
+  //     user_id: user.user_id,
+  //     reply: reply === 'next' ? 'like' : reply,
+  //   }) //
+  //   .eq('phrase', text);
 };
 
 const callbackQueryHandler = async (ctx: CtxUpdate) => {
@@ -61,8 +61,8 @@ const callbackQueryHandler = async (ctx: CtxUpdate) => {
   // @ts-expect-error data is not defined in the type
   const reply = ctx.callbackQuery.data;
 
-  if (reply === 'next' || reply === 'dislike') {
-    await saveUserReaction(ctx, text, reply);
+  if (reply === 'next') {
+    // await saveUserReaction(ctx, text, reply);
     await sendNewPhrase(ctx);
     return;
   }
@@ -80,7 +80,8 @@ const callbackQueryHandler = async (ctx: CtxUpdate) => {
       ctx.reply('Sorry, I could not translate this phrase');
       return;
     }
-    ctx.reply(translated);
+    const r = await ctx.reply(translated);
+    await handleGetAudio(ctx, { text: r.text });
     return;
   }
 
@@ -92,33 +93,95 @@ const callbackQueryHandler = async (ctx: CtxUpdate) => {
   if (reply.includes('explanation_lang:')) handleSaveExplanationsLang(ctx);
   if (reply.includes('phrases_batch_size:')) handleSaveBacth(ctx);
 
-  if (reply === 'new_context') await handleNewContext(ctx);
+  // if (reply === 'new_context') await handleNewContext(ctx);
+  if (reply === 'explanation') await handleGetExplanation(ctx);
 };
 
 export default callbackQueryHandler;
 
-const handleNewContext = async (ctx: CtxUpdate) => {
+const handleGetExplanation = async (ctx: CtxUpdate) => {
+  ctx.reply('Generating explanation...');
+  const rec = await supabase
+    .from('user_feed_queue')
+    .select()
+    .eq('message_id', ctx.callbackQuery.message?.message_id);
+  const record = rec.data?.[0];
+  if (rec.error) {
+    console.log(rec.error);
+
+    ctx.reply('Sorry, I could not generate an explanation');
+    return;
+  }
+
   const user = await getUser(ctx);
-  if (!user) {
-    ctx.reply('Please, connect your account first');
+  const languageToExplain =
+    user?.default_explanation_language === 'native'
+      ? user.native_language
+      : user?.default_explanation_language;
+
+  const newPrompt = `Now I want you to explain each phrase in your own words. Please, write a short explanation, highlight the original phrase with <b>bold</b> tag. Use the ${languageToExplain} language for explanation.`;
+
+  const response = await openai.createChatCompletion({
+    model: 'gpt-4',
+    messages: [
+      {
+        content: record?.prompt ?? '',
+        role: 'user',
+      },
+      {
+        content: record?.gpt_reply ?? '',
+        role: 'assistant',
+      },
+      {
+        content: newPrompt,
+        role: 'user',
+      },
+    ],
+  });
+
+  const text = response.data.choices[0].message?.content;
+  if (!text) {
+    ctx.reply('Sorry, I could not generate an explanation');
     return;
   }
 
-  if (user.default_explanation_language === 'original') {
-    ctx.reply('Generating new context in orginal language...');
-    return;
-  }
+  const reply = await ctx.reply(text, {
+    parse_mode: 'HTML',
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: 'Translate', callback_data: 'translation' }],
+        [{ text: 'Next', callback_data: 'next' }],
+      ],
+    },
+  });
 
-  if (user.default_explanation_language === 'native') {
-    ctx.reply(`Generating new context in ${user.native_language} language...`);
-    return;
-  } else {
-    ctx.reply(
-      `Generating new context in ${user.default_explanation_language} language...`
-    );
-    return;
-  }
+  await handleGetAudio(ctx, { text: reply.text });
 };
+
+// const handleNewContext = async (ctx: CtxUpdate) => {
+//   const user = await getUser(ctx);
+//   if (!user) {
+//     ctx.reply('Please, connect your account first');
+//     return;
+//   }
+
+//   console.log(ctx.update.callback_query.message?.message_id);
+
+//   const record = await supabase
+//     .from('user_feed_queue')
+//     .select()
+//     .eq('message_id', ctx.update.callback_query.message?.message_id);
+
+//   if (!record.data) {
+//     ctx.reply('Sorry, I could not find this phrase');
+//     return;
+//   }
+
+//   const phrasesIds = record.data.map((r) => r.id);
+//   console.log({ phrasesIds });
+
+//   sendNewPhrase(ctx, phrasesIds);
+// };
 
 const handleUserSelectChangeBatch = (ctx: Context) => {
   ctx.editMessageReplyMarkup({
@@ -151,8 +214,8 @@ const handleUserSelectChangeExplanationsLang = (ctx: Context) => {
           callback_data: 'explanation_lang:native',
         },
         {
-          text: 'Orginal',
-          callback_data: 'explanation_lang:orginal',
+          text: 'Original',
+          callback_data: 'explanation_lang:original',
         },
       ],
       [
@@ -220,7 +283,7 @@ async function handleChangeLang(ctx: CtxUpdate, reply: string) {
 
   if (reply === 'change_default_explanation_lang') {
     ctx.reply(
-      'Please enter the language you want to get explanations in. You can also set "orginal" or "native" value.'
+      'Please enter the language you want to get explanations in. You can also set "original" or "native" value.'
     );
   } else ctx.reply('Please, send language or /cancel');
 }

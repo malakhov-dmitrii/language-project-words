@@ -1,19 +1,20 @@
 import { replyOptions } from '@/lib/config';
 import { prisma } from '@/lib/db';
-import { openai } from '@/lib/openai';
+import { languages } from '@/lib/languages';
+import { getCompletion, openai } from '@/lib/openai';
 import { adminAuthClient, supabase } from '@/lib/supabase';
-import { CtxUpdate } from '@/lib/types';
 import { getUser } from '@/lib/user';
 import { handleGetAudio } from '@/lib/utils';
-import { sortBy, uniq } from 'lodash';
+import { sortBy, uniq, uniqBy } from 'lodash';
 import { Context, NarrowedContext } from 'telegraf';
 import { Message, Update } from 'telegraf/typings/core/types/typegram';
 
-export const getRecentPhrase = async (ctx: Context) => {
+export const getRecentPhrases = async (ctx: Context) => {
   const _user = await getUser(ctx);
 
   if (_user) {
     const authUser = await adminAuthClient.getUserById(_user?.user_id);
+    const amount = _user.phrases_batch_size === 'single' ? 1 : 3;
 
     const groups = await prisma.user_group.findMany({
       where: { users: { email: authUser.data.user?.email } },
@@ -22,6 +23,14 @@ export const getRecentPhrase = async (ctx: Context) => {
     const phrases = await prisma.phrases.findMany({
       where: {
         userGroupId: { in: groups.map((group) => group.id) },
+      },
+      include: {
+        user_group_video: {
+          select: {
+            nativeLangCode: true,
+            targetLangCode: true,
+          },
+        },
       },
     });
 
@@ -32,23 +41,38 @@ export const getRecentPhrase = async (ctx: Context) => {
 
     const phrasesStr = sortBy(phrases, (i) => i.createdAt)
       .reverse()
-      .map((phrase) => phrase.highlighted?.replaceAll('\n', ' ').trim() ?? '')
-      .filter(Boolean);
+      .map((phrase) => ({
+        ...phrase,
+        text: phrase.highlighted?.replaceAll('\n', ' ').trim() ?? '',
+      }))
+      .filter((i) => !!i.text);
+
     const diff = uniq(phrasesStr).filter(
-      (p) => !passedPhrases.data?.find((pp) => pp.phrase === p)
+      (p) => !passedPhrases.data?.find((pp) => pp.phrase === p.text)
     );
 
     if (diff.length === 0) {
       return null;
     }
 
-    return diff[0];
+    /**
+     * Sorts by language or video key to avoid sending phrases from different languages
+     * Sort by createdAt and take the first N elements with the same language
+     */
+    const sortedDiff = sortBy(diff, (i) => i.createdAt).reverse();
+    const sortedDiffByLang = sortBy(
+      sortedDiff,
+      (i) => i.user_group_video?.targetLangCode
+    );
+
+    // return N elements from the array
+    return sortedDiffByLang.slice(0, amount);
   }
 };
 
 export const sendNewPhrase = async (
   ctx: NarrowedContext<Context<Update>, Update.MessageUpdate<Message>>,
-  retryPhrase?: string
+  retryPhrasesIds?: number[]
 ) => {
   const user = await getUser(ctx);
   if (!user) {
@@ -59,46 +83,82 @@ export const sendNewPhrase = async (
   const placeholder = await ctx.reply('Getting a phrase...', {
     disable_notification: true,
   });
-  const phrase = retryPhrase ?? (await getRecentPhrase(ctx));
 
-  if (!phrase) {
+  const phrases = await getRecentPhrases(ctx);
+
+  const phrasesCleared = uniqBy(
+    phrases
+      ?.map((i) => {
+        const res = {
+          id: i.id,
+          context: i.fullPhrase?.replaceAll('\n', ' ').trim() ?? '',
+          highlighted: i.highlighted?.replaceAll('\n', ' ').trim() ?? '',
+        };
+        return res;
+      })
+      .filter((i) => !!i.highlighted),
+    (i) => i.highlighted.toLowerCase()
+  );
+
+  if (!phrasesCleared?.length) {
     ctx.reply(
       "Looks like you've learned all the phrases. Please, come back later."
     );
     return;
   }
 
-  const generated = await openai.createCompletion({
-    model: 'text-davinci-003',
-    prompt: `I want you to act as a language tutor. I will provide you a word or a phrase, and you will generate a small paragraph using this word or phrase so it should be easy to understand the meaning of the word or phrase without translation. Here is my input: "${phrase}"\n\nYour response:`,
-    temperature: 0.7,
-    max_tokens: 256,
-    top_p: 1,
-    frequency_penalty: 0,
-    presence_penalty: 0,
-  });
+  const targetLangCode = phrases?.[0]?.user_group_video
+    ?.targetLangCode as keyof typeof languages;
+  const language = languages[targetLangCode];
 
-  const text = generated.data.choices[0].text;
+  const prompt = `I want to learn a couple of phrases in ${language} language. Here is the list of them: ${phrasesCleared
+    .map((i, idx) => `${idx + 1}. ${i.highlighted}`)
+    .join(
+      '\n'
+    )}. I want to learn them in new context. Here is the original context: ${phrasesCleared
+    .map((i, idx) => `${idx + 1}. ${i.context}`)
+    .join('\n')}.
+      
+Please, generate a new common context for that phrases and make them sound natural and easy to understand for beginners. Highlight original phrases using <b>bold</b> tag. Avoid providing a translation or direct explanation of the phrase. Use the same language as the original context.`;
+  const text = await getCompletion(prompt);
+
   if (!text) {
-    ctx.reply('Sorry, I could not generate a phrase for you');
+    ctx.reply('Something went wrong. Please, try again later.');
     return;
   }
 
-  const reply = await ctx.reply(
-    `${text}
+  const replyText = `${text}
   
-The original phrase/word: <b>${phrase}</b>`,
-    replyOptions
-  );
+--- <b>Original phrases</b> ---
+${phrasesCleared.map((i) => i.highlighted).join('\n')}
 
-  await handleGetAudio(ctx, { text });
+--- <b>Original context</b> ---
+${phrasesCleared.map((i) => i.context).join('\n')}
+  `;
+
+  const reply = await ctx.reply(replyText, {
+    parse_mode: 'HTML',
+    reply_markup: replyOptions.reply_markup,
+  });
+
+  await handleGetAudio(ctx, { text: reply.text, langCode: targetLangCode });
+
+  /**
+   * Save phrases as completed
+   */
+  for await (const phrase of phrasesCleared) {
+    await supabase
+      .from('user_feed_queue')
+      .upsert({
+        phrase: phrase.highlighted,
+        phrase_original_id: phrase.id,
+        user_id: user?.user_id!,
+        message_id: reply.message_id,
+        prompt,
+        gpt_reply: reply.text,
+      })
+      .eq('phrase_original_id', phrase.id);
+  }
 
   ctx.deleteMessage(placeholder.message_id);
-
-  await supabase.from('user_feed_queue').insert({
-    phrase,
-    user_id: user?.user_id!,
-    generated_text: text,
-    message_id: reply.message_id,
-  });
 };

@@ -282,30 +282,39 @@ export interface Database {
         Row: {
           created_at: string | null
           generated_text: string | null
+          gpt_reply: string | null
           id: number
           jokes: string[]
           message_id: number | null
           phrase: string
+          phrase_original_id: number | null
+          prompt: string | null
           reply: string | null
           user_id: string
         }
         Insert: {
           created_at?: string | null
           generated_text?: string | null
+          gpt_reply?: string | null
           id?: number
           jokes?: string[]
           message_id?: number | null
           phrase: string
+          phrase_original_id?: number | null
+          prompt?: string | null
           reply?: string | null
           user_id: string
         }
         Update: {
           created_at?: string | null
           generated_text?: string | null
+          gpt_reply?: string | null
           id?: number
           jokes?: string[]
           message_id?: number | null
           phrase?: string
+          phrase_original_id?: number | null
+          prompt?: string | null
           reply?: string | null
           user_id?: string
         }

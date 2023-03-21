@@ -7,16 +7,16 @@ const configuration = new Configuration({
 export const openai = new OpenAIApi(configuration);
 
 export const getCompletion = async (prompt: string) => {
-  const response = await openai.createCompletion({
-    model: 'text-davinci-003',
-    prompt: prompt,
-    temperature: 0.7,
-    max_tokens: 256,
-    top_p: 1,
-    frequency_penalty: 0,
-    presence_penalty: 0,
+  const response = await openai.createChatCompletion({
+    model: 'gpt-4',
+    messages: [
+      {
+        content: prompt,
+        role: 'user',
+      },
+    ],
   });
 
-  const text = response.data.choices[0]?.text;
+  const text = response.data.choices[0].message?.content;
   return text;
 };
