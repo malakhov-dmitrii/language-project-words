@@ -131,12 +131,9 @@ const sendOnSchedule = async () => {
   }
 };
 
-sendOnSchedule();
-
 cron.schedule('*/10 * * * *', async () => {
   console.log('Cron job started');
-  const chats = await supabase.from('transactions').select('chat_id');
-  console.log('Chats', chats);
+  sendOnSchedule();
 });
 
 // Enable graceful stop
