@@ -10,9 +10,11 @@ import { getUser } from '@/lib/user';
 import { Context } from '@/lib/types';
 import { adminAuthClient, supabase } from '@/lib/supabase';
 import { capitalize } from 'lodash';
-import { sendNewPhrase } from '@/lib/phrases';
+import { pushSendNewPhrase, replySendNewPhrase } from '@/lib/phrases';
+import cron from 'node-cron';
+import dayjs from 'dayjs';
 
-const bot = new Telegraf<Context>(process.env.TELEGRAM_BOT_TOKEN ?? '');
+export const bot = new Telegraf<Context>(process.env.TELEGRAM_BOT_TOKEN ?? '');
 
 bot.use(async (ctx, next) => {
   const user = await getUser(ctx);
@@ -37,7 +39,7 @@ Also:
 Translate the phrase to your native language 🌐
 Get a joke with the phrase 🤡`);
 });
-bot.command('new', (ctx) => sendNewPhrase(ctx));
+bot.command('new', (ctx) => replySendNewPhrase(ctx));
 bot.command('clear', clearHandler);
 bot.command('cancel', async (ctx) => {
   const user = await getUser(ctx);
@@ -108,24 +110,35 @@ bot.on('callback_query', async (ctx) => callbackQueryHandler(ctx));
 console.log('Starting bot...');
 bot.launch();
 
+const sendOnSchedule = async () => {
+  const users = await supabase.from('telegram_users').select('*');
+
+  for await (const user of users.data ?? []) {
+    const latestMessage = await supabase
+      .from('user_feed_queue')
+      .select('*')
+      .eq('user_id', user.user_id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    const createdAt = dayjs(latestMessage.data?.created_at);
+
+    if (createdAt.isBefore(dayjs(), 'day')) {
+      // console.log('Send new', latestMessage.data);
+      pushSendNewPhrase(user.chat_id);
+    }
+  }
+};
+
+sendOnSchedule();
+
+cron.schedule('*/10 * * * *', async () => {
+  console.log('Cron job started');
+  const chats = await supabase.from('transactions').select('chat_id');
+  console.log('Chats', chats);
+});
+
 // Enable graceful stop
 process.once('SIGINT', () => bot.stop('SIGINT'));
 process.once('SIGTERM', () => bot.stop('SIGTERM'));
-
-/**
- * TODO:
- *
- * I Finished when I wanted to send audio along with new phrase.
- *
- * 1. Take N phrases from DB with their highlighed context
- * 2. Send them to user
- * 3. Generate a voiceover message with the phrase
- * 4. Send it to user
- * 5. Wait for user's reaction
- * 6. If user reacted with "Generate new context" - take phrases, but ask ChatGPT to generate a new context in original language
- * 7. If user reacted with "Translate to native" - translate generated text to native language
- * 8. If user reacted with "Generate explanations" - take phrases and default explanation language
- * then ask ChatGPT to generate explanations in that language
- * 9. If user reacted with "Generate joke" - take phrases and ask ChatGPT to generate a joke
- *
- */

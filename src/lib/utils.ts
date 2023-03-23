@@ -60,27 +60,15 @@ export const detectLanguage = async (text: string) => {
   return response.data.data.detections[0].language;
 };
 
-export async function handleGetAudio(
-  ctx: NarrowedContext<TContext<Update>, Update.MessageUpdate<any>>,
-  {
-    text,
-    langCode,
-  }: {
-    langCode?: string;
-    text: string;
-  }
-) {
-  const user = await getUser(ctx);
-
+export async function handleGetAudio({
+  text,
+  langCode,
+}: {
+  langCode?: string;
+  text: string;
+}): Promise<string | null> {
   const detectedLang = await detectLanguage(text);
   const lang = langCode || detectedLang;
-
-  console.log('detectedLang', detectedLang);
-
-  if (!lang) {
-    ctx.reply('We could not find your language code');
-    return;
-  }
 
   const path = `${dayjs().format('HH:mm:ss DD MMM YYYY')}.mp3`;
   const vo = await getVoiceOver(text, lang);
@@ -91,10 +79,10 @@ export async function handleGetAudio(
   const r = await supabase.storage.from('audio').getPublicUrl(path);
 
   if (upload.data) {
-    ctx.replyWithVoice(r.data.publicUrl);
+    return r.data.publicUrl;
   } else {
     console.log(upload.error);
-    ctx.reply('Sorry, something went wrong');
+    return null;
   }
 }
 

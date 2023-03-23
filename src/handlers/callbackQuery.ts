@@ -1,7 +1,7 @@
 import { decode } from 'base64-arraybuffer';
 import { languages } from '@/lib/languages';
 import { getCompletion, openai } from '@/lib/openai';
-import { sendNewPhrase } from '@/lib/phrases';
+import { replySendNewPhrase } from '@/lib/phrases';
 import { supabase } from '@/lib/supabase';
 import { CtxUpdate, UserProfile } from '@/lib/types';
 import { getUser } from '@/lib/user';
@@ -63,7 +63,7 @@ const callbackQueryHandler = async (ctx: CtxUpdate) => {
 
   if (reply === 'next') {
     // await saveUserReaction(ctx, text, reply);
-    await sendNewPhrase(ctx);
+    await replySendNewPhrase(ctx);
     return;
   }
 
@@ -81,7 +81,14 @@ const callbackQueryHandler = async (ctx: CtxUpdate) => {
       return;
     }
     const r = await ctx.reply(translated);
-    await handleGetAudio(ctx, { text: r.text });
+    const audioUrl = await handleGetAudio({
+      text: r.text,
+    });
+    if (!audioUrl) {
+      ctx.reply('Sorry, failed to get audio...');
+      return;
+    }
+    ctx.replyWithVoice(audioUrl);
     return;
   }
 
@@ -155,7 +162,14 @@ const handleGetExplanation = async (ctx: CtxUpdate) => {
     },
   });
 
-  await handleGetAudio(ctx, { text: reply.text });
+  const audioUrl = await handleGetAudio({
+    text: reply.text,
+  });
+  if (!audioUrl) {
+    ctx.reply('Sorry, failed to get audio...');
+    return;
+  }
+  ctx.replyWithVoice(audioUrl);
 };
 
 // const handleNewContext = async (ctx: CtxUpdate) => {

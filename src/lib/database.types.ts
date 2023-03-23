@@ -207,6 +207,7 @@ export interface Database {
       }
       telegram_users: {
         Row: {
+          chat_id: number
           created_at: string | null
           default_explanation_language: string
           email: string
@@ -218,6 +219,7 @@ export interface Database {
           user_id: string
         }
         Insert: {
+          chat_id?: number
           created_at?: string | null
           default_explanation_language?: string
           email: string
@@ -229,6 +231,7 @@ export interface Database {
           user_id: string
         }
         Update: {
+          chat_id?: number
           created_at?: string | null
           default_explanation_language?: string
           email?: string

@@ -1,7 +1,7 @@
 import { HandlerContext } from '@/handlers/handlers.types';
 import { Database } from '@/lib/database.types';
 import { languages } from '@/lib/languages';
-import { sendNewPhrase } from '@/lib/phrases';
+import { replySendNewPhrase } from '@/lib/phrases';
 import { supabase } from '@/lib/supabase';
 import { getUser, setupUser } from '@/lib/user';
 import { entries } from 'lodash';
@@ -77,7 +77,7 @@ const messageHandler = async (
   else if (user.state === 'change_default_explanation_lang')
     setupDefaultExplanationLanguage(ctx, user);
   else {
-    sendNewPhrase(ctx);
+    replySendNewPhrase(ctx);
   }
 };
 

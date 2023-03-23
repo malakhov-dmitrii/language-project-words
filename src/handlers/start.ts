@@ -1,12 +1,12 @@
 import { HandlerContext } from '@/handlers/handlers.types';
-import { sendNewPhrase } from '@/lib/phrases';
+import { replySendNewPhrase } from '@/lib/phrases';
 import { getUser } from '@/lib/user';
 
 const startHandler = async (ctx: HandlerContext) => {
   const user = await getUser(ctx);
   if (user) {
     ctx.reply('Your account connected, lets get started.');
-    sendNewPhrase(ctx);
+    replySendNewPhrase(ctx);
 
     /**
      * TODO: We can add selection of native language and language to learn

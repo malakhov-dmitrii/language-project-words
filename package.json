@@ -12,6 +12,7 @@
     "@tsconfig/node18": "^1.0.1",
     "@types/lodash": "^4.14.191",
     "@types/node": "^18.13.0",
+    "@types/node-cron": "^3.0.7",
     "nodemon": "^2.0.20",
     "prettier": "^2.8.4",
     "prisma": "4.3.1",
@@ -31,6 +32,7 @@
     "fs-jetpack": "^5.1.0",
     "google-tts-api": "^2.0.2",
     "lodash": "^4.17.21",
+    "node-cron": "^3.0.2",
     "openai": "^3.2.1",
     "telegraf": "^4.11.2"
   }
