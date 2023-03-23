@@ -132,7 +132,7 @@ const sendOnSchedule = async () => {
 };
 
 cron.schedule('*/10 * * * *', async () => {
-  console.log('Cron job started');
+  // console.log('Cron job started');
   sendOnSchedule();
 });
 
